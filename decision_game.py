@@ -60,7 +60,7 @@ def figure_plot(data,current,win_size,sr,br):
 
 def summary_plot(data,current):
     data_slice = data.iloc[0:(current + 1), :]
-    #plt.figure(figsize=(120, 40))
+    plt.figure(figsize=(120, 40))
     plt.bar(data_slice.index,
             height=data_slice['hist'], bottom=8000)
     plt.plot(data_slice['close'])
@@ -91,15 +91,25 @@ if __name__ == '__main__':
     br = []
     sr = []
     current = 0
+    earlybreak = False
     for idx in range(242,len(df)):
-        print('Press 1 for buy, 0 for sell, 6 for end, other numbers for hold')
-        decision = int(sys.stdin.readline().strip())
-        if decision == 1:
-            share, cash = buy_opreation(df,idx,share,cash,br)
-        elif decision == 0:
-            share, cash = sell_opreation(df,idx,share,cash,sr)
-        elif decision == 6:
-            current = idx
+        valid_input = False
+        while not valid_input:
+            print('Press 1 for buy, 0 for sell, 2 for hold, and 6 for end')
+            decision = sys.stdin.readline().strip()
+            if decision == '1':
+                share, cash = buy_opreation(df,idx,share,cash,br)
+                valid_input = True
+            elif decision == '0':
+                share, cash = sell_opreation(df,idx,share,cash,sr)
+                valid_input = True
+            elif decision == '6':
+                current = idx
+                earlybreak = True
+                valid_input = True
+            elif decision == '2':
+                valid_input = True
+        if earlybreak:
             break
         current = idx
         value = share * df.loc[idx, 'close'] + cash
