@@ -1,9 +1,10 @@
 import matplotlib
-import numpy as np
 import tkinter as tk
+import tkinter.messagebox
 import pandas as pd
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
+from tkinter import StringVar
 matplotlib.use('TkAgg')
 
 
@@ -18,46 +19,63 @@ class Application(tk.Tk):
         self.cash = 10000
         self.br = []
         self.sr = []
-        fig = Figure(figsize=(5, 4), dpi=100)
+        fig = Figure(figsize=(10, 9), dpi=100)
         self.ax = fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(fig, master=self)
-        self.create_widgets()
+        self.text = StringVar()
+        self.lb = tk.Label(textvariable=self.text)
         self.win_size = 30
+        self.create_widgets()
+        self.figure_plot()
 
     def create_widgets(self):
-        self.canvas.get_tk_widget().grid(row=0, columnspan=4)
+        self.text.set('Your current value is %d.' % 10000)
+        self.lb.grid(row=0, columnspan=4)
+        self.canvas.get_tk_widget().grid(row=1, columnspan=4)
         # self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         # self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         # toolbar = NavigationToolbar2Tk(self.canvas, self)
         # toolbar.update()
-        footframe = tk.Frame(master=self).grid(row=1, columnspan=4)
-        tk.Button(master=footframe, text='Sell', command=self.sell).grid(row=1, column=0)
-        tk.Button(master=footframe, text='Buy', command=self.buy).grid(row=1, column=1)
-        tk.Button(master=footframe, text='Hold', command=self.hold).grid(row=1, column=2)
-        tk.Button(master=footframe, text='Quit', command=self.quit).grid(row=1, column=3)
+        footframe = tk.Frame(master=self).grid(row=2, columnspan=4)
+        tk.Button(master=footframe, text='Sell', width=16, height=2, command=self.sell).grid(row=2, column=0)
+        tk.Button(master=footframe, text='Buy', width=16, height=2, command=self.buy).grid(row=2, column=1)
+        tk.Button(master=footframe, text='Hold', width=16, height=2, command=self.hold).grid(row=2, column=2)
+        tk.Button(master=footframe, text='Quit', width=16, height=2, command=self.quit).grid(row=2, column=3)
         # self.draw()  # 绘图
 
     def buy(self):
-        self.idx += 1
-        self.share += self.cash / self.data.loc[self.idx,'close']
-        self.cash = 0
-        self.data.loc[self.idx,'operation'] = 1
-        self.br.append(self.idx)
-        self.figure_plot()
-        self.__need_quit()
+        if self.cash > 0:
+            self.idx += 1
+            self.share += self.cash / self.data.loc[self.idx,'close']
+            self.cash = 0
+            self.data.loc[self.idx,'value'] = self.cash + self.share * self.data.loc[self.idx,'close']
+            self.data.loc[self.idx,'operation'] = 1
+            self.br.append(self.idx)
+            self.figure_plot()
+            self.label_update()
+            self.__need_quit()
+        else:
+            tk.messagebox.showwarning('Notification','No cash to buy, please sell first!')
 
     def sell(self):
-        self.idx += 1
-        self.cash += self.share * self.data.loc[self.idx, 'close']
-        self.share = 0
-        self.data.loc[self.idx, 'operation'] = 0
-        self.sr.append(self.idx)
-        self.figure_plot()
-        self.__need_quit()
+        if self.share > 0:
+            self.idx += 1
+            self.cash += self.share * self.data.loc[self.idx, 'close']
+            self.share = 0
+            self.data.loc[self.idx,'value'] = self.cash + self.share * self.data.loc[self.idx,'close']
+            self.data.loc[self.idx, 'operation'] = 0
+            self.sr.append(self.idx)
+            self.figure_plot()
+            self.label_update()
+            self.__need_quit()
+        else:
+            tk.messagebox.showwarning('Notification','No share to sell, please buy first!')
 
     def hold(self):
         self.idx += 1
+        self.data.loc[self.idx, 'value'] = self.cash + self.share * self.data.loc[self.idx, 'close']
         self.figure_plot()
+        self.label_update()
         self.__need_quit()
 
     def quit(self):
@@ -66,7 +84,7 @@ class Application(tk.Tk):
     def figure_plot(self):
         self.ax.clear()
         data_slice = self.data.iloc[max(0, self.idx - self.win_size):(self.idx + 1), :]
-        self.ax.bar(x=data_slice.index, height=data_slice['hist'], bottom=8000)
+        self.ax.bar(x=data_slice.index, height=data_slice['hist'],bottom=8000)
         self.ax.plot(data_slice['close'])
         self.ax.plot(data_slice['value'])
         # plt.grid(color="k", linestyle=":")
@@ -83,6 +101,10 @@ class Application(tk.Tk):
                     self.ax.axvline(x=xbr, c='red')
         self.canvas.draw()
 
+    def label_update(self):
+        self.text.set('Your current value is %d.' % self.data.loc[self.idx,'value'])
+        self.lb.configure(textvariable=self.text)
+
     def __need_quit(self):
         # self.quit()
         if self.idx == len(self.data):
@@ -98,7 +120,7 @@ def prepare_data(path):
 
 
 if __name__ == '__main__':
-    datapath = '/Users/Jipeng/PycharmProjects/quantitative_stock/game_data.csv'
+    datapath = './game_data.csv'
     df = prepare_data(datapath)
     app = Application(df)
     app.mainloop()
