@@ -19,9 +19,9 @@ class Application(tk.Tk):
         self.cash = 10000
         self.br = []
         self.sr = []
-        fig = Figure(figsize=(10, 9), dpi=100)
-        self.ax = fig.add_subplot(111)
-        self.canvas = FigureCanvasTkAgg(fig, master=self)
+        self.fig = Figure(figsize=(16, 9), dpi=100)
+        self.ax = self.fig.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.text = StringVar()
         self.lb = tk.Label(textvariable=self.text)
         self.win_size = 30
@@ -79,6 +79,7 @@ class Application(tk.Tk):
         self.__need_quit()
 
     def quit(self):
+        self.summary_plot()
         self.destroy()
 
     def figure_plot(self):
@@ -101,13 +102,35 @@ class Application(tk.Tk):
                     self.ax.axvline(x=xbr, c='red')
         self.canvas.draw()
 
+    def summary_plot(self):
+        self.ax.clear()
+        data_slice = self.data.iloc[0:(self.idx + 1), :]
+        self.ax.bar(x=data_slice.index, height=data_slice['hist'], bottom=8000)
+        self.ax.plot(data_slice['close'])
+        self.ax.plot(data_slice['value'])
+        # plt.grid(color="k", linestyle=":")
+        self.ax.set_xticks(data_slice.index)
+        self.ax.set_xticklabels(data_slice['date'], rotation='vertical')
+        # plt.savefig("test.png", dpi=120)
+        if len(self.sr) != 0:
+            for xsr in self.sr:
+                if xsr >= self.idx - self.win_size:
+                    self.ax.axvline(x=xsr, c='green')
+        if len(self.br) != 0:
+            for xbr in self.br:
+                if xbr >= self.idx - self.win_size:
+                    self.ax.axvline(x=xbr, c='red')
+        self.canvas.draw()
+        self.fig.savefig('./user_decision_plot.png')
+
     def label_update(self):
-        self.text.set('Your current value is %d.' % self.data.loc[self.idx,'value'])
+        self.text.set('Your current value is %d.' % self.data.loc[self.idx, 'value'])
         self.lb.configure(textvariable=self.text)
 
     def __need_quit(self):
         # self.quit()
         if self.idx == len(self.data):
+            self.summary_plot()
             self.destroy()
 
 

@@ -1,0 +1,21 @@
+Commandline operations for building an app:
+
+Step1:
+Generate setup.py
+
+py2applet --make-setup game_app.py
+
+Step2:
+Remove any previous build and dist files
+rm -rf build dist
+
+Step3:
+Build the standalone python app. -A for quick version.
+
+python setup.py py2app
+python setup.py py2app -A
+
+Find icons
+https://icons8.com/
+Convert icns format
+https://www.easyicon.net/covert/
