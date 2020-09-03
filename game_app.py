@@ -10,11 +10,11 @@ matplotlib.use('TkAgg')
 
 class Application(tk.Tk):
 
-    def __init__(self, data):
+    def __init__(self, data, start_idx):
         super().__init__()
         self.wm_title('Decision training for 1-year stock market')
         self.data = data
-        self.idx = 242
+        self.idx = start_idx
         self.share = 0
         self.cash = 10000
         self.br = []
@@ -114,12 +114,10 @@ class Application(tk.Tk):
         # plt.savefig("test.png", dpi=120)
         if len(self.sr) != 0:
             for xsr in self.sr:
-                if xsr >= self.idx - self.win_size:
-                    self.ax.axvline(x=xsr, c='green')
+                self.ax.axvline(x=xsr, c='green')
         if len(self.br) != 0:
             for xbr in self.br:
-                if xbr >= self.idx - self.win_size:
-                    self.ax.axvline(x=xbr, c='red')
+                self.ax.axvline(x=xbr, c='red')
         self.canvas.draw()
         self.fig.savefig('./user_decision_plot.png')
 
@@ -145,5 +143,5 @@ def prepare_data(path):
 if __name__ == '__main__':
     datapath = './game_data.csv'
     df = prepare_data(datapath)
-    app = Application(df)
+    app = Application(df, 0)
     app.mainloop()
