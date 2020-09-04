@@ -5,7 +5,9 @@ investment strategy and algorithm strategy. The project currently contains 2 par
 * Quantitative strategy return test on ShenCheng Index history data in past 3 years.
 * Sharing Stock: A Stock dealing simulation game for human users to train and explore new investment insights.
 
-![Sharing Stock](img_url)
+![Sharing Stock](https://github.com/JipengSun/quantitative_stock/blob/master/sharing_stock.png) 
+
+Sharing Stock
 
 Sharing Stock has released 1.0.0 version which contains following functions:
 
