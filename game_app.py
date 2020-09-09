@@ -14,11 +14,14 @@ class Application(tk.Tk):
         super().__init__()
         self.wm_title('Decision training for 1-year stock market')
         self.data = data
+        self.start = start_idx
         self.idx = start_idx
         self.share = 0
         self.cash = 10000
         self.br = []
         self.sr = []
+        self.last_buy_interval = 0
+        self.sell_fee_percent = 1.5
         self.fig = Figure(figsize=(16, 9), dpi=100)
         self.ax = self.fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
@@ -29,7 +32,9 @@ class Application(tk.Tk):
         self.figure_plot()
 
     def create_widgets(self):
-        self.text.set('Your current value is %d.' % 10000)
+        self.text.set(
+            'Your current value is %d.\n The day interval from your last buy is %d, so the current sell charge percentage is %.2f%%' % (
+            10000, 0, 1.5))
         self.lb.grid(row=0, columnspan=4)
         self.canvas.get_tk_widget().grid(row=1, columnspan=4)
         # self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
@@ -44,12 +49,13 @@ class Application(tk.Tk):
         # self.draw()  # 绘图
 
     def buy(self):
-        if self.cash > 0:
+        if self.cash > 0 and not self.__need_quit():
             self.idx += 1
-            self.share += self.cash / self.data.loc[self.idx,'close']
+            self.last_buy_interval = 0
+            self.share += self.cash / self.data.loc[self.idx, 'close'] * 0.9985
             self.cash = 0
-            self.data.loc[self.idx,'value'] = self.cash + self.share * self.data.loc[self.idx,'close']
-            self.data.loc[self.idx,'operation'] = 1
+            self.data.loc[self.idx, 'value'] = self.cash + self.share * self.data.loc[self.idx, 'close']
+            self.data.loc[self.idx, 'operation'] = 1
             self.br.append(self.idx)
             self.figure_plot()
             self.label_update()
@@ -58,11 +64,15 @@ class Application(tk.Tk):
             tk.messagebox.showwarning('Notification','No cash to buy, please sell first!')
 
     def sell(self):
-        if self.share > 0:
+        if self.share > 0 and not self.__need_quit():
             self.idx += 1
-            self.cash += self.share * self.data.loc[self.idx, 'close']
+            self.last_buy_interval = self.idx - self.br[-1]
+            if self.last_buy_interval <= 7:
+                self.cash += self.share * self.data.loc[self.idx, 'close'] * 0.985
+            else:
+                self.cash += self.share * self.data.loc[self.idx, 'close'] * 0.995
             self.share = 0
-            self.data.loc[self.idx,'value'] = self.cash + self.share * self.data.loc[self.idx,'close']
+            self.data.loc[self.idx, 'value'] = self.cash + self.share * self.data.loc[self.idx, 'close']
             self.data.loc[self.idx, 'operation'] = 0
             self.sr.append(self.idx)
             self.figure_plot()
@@ -72,11 +82,16 @@ class Application(tk.Tk):
             tk.messagebox.showwarning('Notification','No share to sell, please buy first!')
 
     def hold(self):
-        self.idx += 1
-        self.data.loc[self.idx, 'value'] = self.cash + self.share * self.data.loc[self.idx, 'close']
-        self.figure_plot()
-        self.label_update()
-        self.__need_quit()
+        if not self.__need_quit():
+            self.idx += 1
+            if len(self.br) == 0:
+                self.last_buy_interval = 0
+            else:
+                self.last_buy_interval = self.idx - self.br[-1]
+            self.data.loc[self.idx, 'value'] = self.cash + self.share * self.data.loc[self.idx, 'close']
+            self.figure_plot()
+            self.label_update()
+            self.__need_quit()
 
     def quit(self):
         self.summary_plot()
@@ -85,7 +100,7 @@ class Application(tk.Tk):
     def figure_plot(self):
         self.ax.clear()
         data_slice = self.data.iloc[max(0, self.idx - self.win_size):(self.idx + 1), :]
-        self.ax.bar(x=data_slice.index, height=data_slice['hist'],bottom=8000)
+        self.ax.bar(x=data_slice.index, height=data_slice.loc[:, 'hist'], bottom=8000)
         self.ax.plot(data_slice['close'])
         self.ax.plot(data_slice['value'])
         # plt.grid(color="k", linestyle=":")
@@ -104,7 +119,7 @@ class Application(tk.Tk):
 
     def summary_plot(self):
         self.ax.clear()
-        data_slice = self.data.iloc[0:(self.idx + 1), :]
+        data_slice = self.data.iloc[self.start:(self.idx), :]
         self.ax.bar(x=data_slice.index, height=data_slice['hist'], bottom=8000)
         self.ax.plot(data_slice['close'])
         self.ax.plot(data_slice['value'])
@@ -122,14 +137,23 @@ class Application(tk.Tk):
         self.fig.savefig('./user_decision_plot.png')
 
     def label_update(self):
-        self.text.set('Your current value is %d.' % self.data.loc[self.idx, 'value'])
+        if self.last_buy_interval <= 7:
+            self.sell_fee_percent = 1.5
+        else:
+            self.sell_fee_percent = 0.5
+        self.text.set(
+            'Your current value is %d.\n The day interval from your last buy is %d, so the current sell charge percentage is %.2f%%' % (
+            self.data.loc[self.idx, 'value'], self.last_buy_interval, self.sell_fee_percent))
         self.lb.configure(textvariable=self.text)
 
     def __need_quit(self):
         # self.quit()
-        if self.idx == len(self.data):
+        if self.idx >= len(self.data):
             self.summary_plot()
             self.destroy()
+            return True
+        else:
+            return False
 
 
 def prepare_data(path):
@@ -143,5 +167,5 @@ def prepare_data(path):
 if __name__ == '__main__':
     datapath = './game_data.csv'
     df = prepare_data(datapath)
-    app = Application(df, 0)
+    app = Application(df, 573)
     app.mainloop()
